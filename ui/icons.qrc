@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="Buttons">
+    <file alias="open">icons/folder.png</file>
+    <file alias="exit">icons/door_open.png</file>
+  </qresource>
+</RCC>
