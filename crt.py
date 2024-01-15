@@ -1,4 +1,10 @@
-from PySide6.QtCore import QAbstractTableModel
+import os.path
+from typing import Any
+
+from PySide6.QtCore import QAbstractTableModel, QModelIndex
+from PySide6.QtGui import Qt
+
+import petscii_codecs
 
 
 class CrtException(Exception):
@@ -130,7 +136,26 @@ class Crt:
 
 
 class EasyFile:
-    pass
+    def __init__(self, cname: bytes = bytes(), name: str = "", flags: int = 0, bank: int = 0, offset: int = 0,
+                 load_address: int = 0, data: bytes = bytes()) -> None:
+        self.cname = cname
+        self.name = name
+        self.flags = flags
+        self.bank = bank
+        self.offset = offset
+        self.load_address = load_address
+        self.data = data
+        if cname:
+            self.name = cname.decode('petscii_c64en_lc')
+
+    def __repr__(self):
+        e = self.offset + len(self.data)
+        return f"{self.name}[{self.bank}:{hex(self.offset)}-{self.bank + e // 0x4000}:{hex(e % 0x4000)}=>{self.bank * 0x4000 + self.offset}]"
+
+    def export(self, path: str) -> None:
+        with open(os.path.join(path, f"{self.name}.prg"), 'wb') as fo:
+            fo.write(self.load_address.to_bytes(2, "little"))
+            fo.write(self.data)
 
 
 class EasyFS(QAbstractTableModel):
@@ -141,4 +166,52 @@ class EasyFS(QAbstractTableModel):
         self.files = []
 
     def from_bytes(self, data: bytes) -> None:
-        pass
+        app = EasyFile(name="app", flags=-1, load_address=0x8000, data=data[:0x2000])
+        self.files.append(app)
+
+        directory = EasyFile(name="directory", flags=-1, offset=0x2000, data=data[0x2000:0x2000 + 0x1800])
+        self.files.append(directory)
+
+        easyapi = EasyFile(name="easyapi", flags=-1, offset=0x2000 + 0x1800, load_address=0xb800,
+                           data=data[0x2000 + 0x1800:0x2000 + 0x1b00])
+        self.files.append(easyapi)
+
+        startup = EasyFile(name="startup", flags=-1, offset=0x2000 + 0x1b00, load_address=0xfb00,
+                           data=data[0x2000 + 0x1b00:0x4000])
+        self.files.append(startup)
+
+        p = 0x2000
+        entry = 0
+        while entry < 256 and data[p + 16] & 0x1F != 0x1F:
+            file = EasyFile(cname=data[p:p + 16].rstrip(b'\0x00'), flags=data[p + 16], bank=data[p + 17],
+                            offset=int.from_bytes(data[p + 19:p + 21], "little"))
+            size = int.from_bytes(data[p + 21:p + 24], "little")
+            start_addr = file.bank * 0x4000 + file.offset
+            file.load_address = int.from_bytes(data[start_addr:start_addr + 2], "little")
+            file.data = data[start_addr + 2:start_addr + size - 1]
+            self.files.append(file)
+            p += 24
+            entry += 1
+        self.layoutChanged.emit()
+
+    def columnCount(self, parent=QModelIndex()) -> int:
+        return 4
+
+    def rowCount(self, parent=QModelIndex()) -> int:
+        return len(self.files)
+
+    def data(self, index: QModelIndex, role=Qt.ItemDataRole.DisplayRole) -> Any:
+        if role == Qt.ItemDataRole.DisplayRole:
+            file = self.files[index.row()]
+            if index.column() == 0:
+                return file.name
+            if index.column() == 1:
+                return f"0:{file.bank}:{file.offset:#0{4}x}"
+            if index.column() == 2:
+                return file.load_address
+            if index.column() == 3:
+                return len(file.data)
+
+    def headerData(self, section: int, orientation: Qt.Orientation, role=Qt.ItemDataRole.DisplayRole):
+        if role == Qt.ItemDataRole.DisplayRole and orientation == Qt.Orientation.Horizontal:
+            return ["File name", "Bank:offset", "Load address", "Size"][section]

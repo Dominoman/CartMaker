@@ -16,8 +16,9 @@ from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
     QIcon, QImage, QKeySequence, QLinearGradient,
     QPainter, QPalette, QPixmap, QRadialGradient,
     QTransform)
-from PySide6.QtWidgets import (QApplication, QMainWindow, QMenu, QMenuBar,
-    QSizePolicy, QStatusBar, QToolBar, QWidget)
+from PySide6.QtWidgets import (QAbstractItemView, QApplication, QHeaderView, QMainWindow,
+    QMenu, QMenuBar, QSizePolicy, QStatusBar,
+    QTableView, QToolBar, QVBoxLayout, QWidget)
 import icons_rc
 
 class Ui_MainWindow(object):
@@ -35,8 +36,23 @@ class Ui_MainWindow(object):
         icon1 = QIcon()
         icon1.addFile(u":/Buttons/open", QSize(), QIcon.Normal, QIcon.Off)
         self.actionOpen_crt.setIcon(icon1)
+        self.actionExport = QAction(MainWindow)
+        self.actionExport.setObjectName(u"actionExport")
+        self.actionExport.setEnabled(False)
+        icon2 = QIcon()
+        icon2.addFile(u":/Buttons/export", QSize(), QIcon.Normal, QIcon.Off)
+        self.actionExport.setIcon(icon2)
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
+        self.verticalLayout = QVBoxLayout(self.centralwidget)
+        self.verticalLayout.setObjectName(u"verticalLayout")
+        self.tableView = QTableView(self.centralwidget)
+        self.tableView.setObjectName(u"tableView")
+        self.tableView.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.tableView.verticalHeader().setVisible(False)
+
+        self.verticalLayout.addWidget(self.tableView)
+
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
@@ -53,9 +69,11 @@ class Ui_MainWindow(object):
 
         self.menubar.addAction(self.menu_File.menuAction())
         self.menu_File.addAction(self.actionOpen_crt)
+        self.menu_File.addAction(self.actionExport)
         self.menu_File.addSeparator()
         self.menu_File.addAction(self.actionE_xit)
         self.toolBar.addAction(self.actionOpen_crt)
+        self.toolBar.addAction(self.actionExport)
 
         self.retranslateUi(MainWindow)
 
@@ -69,6 +87,7 @@ class Ui_MainWindow(object):
 #if QT_CONFIG(shortcut)
         self.actionOpen_crt.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+O", None))
 #endif // QT_CONFIG(shortcut)
+        self.actionExport.setText(QCoreApplication.translate("MainWindow", u"Export...", None))
         self.menu_File.setTitle(QCoreApplication.translate("MainWindow", u"&File", None))
         self.toolBar.setWindowTitle(QCoreApplication.translate("MainWindow", u"toolBar", None))
     # retranslateUi

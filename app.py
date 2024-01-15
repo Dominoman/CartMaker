@@ -1,5 +1,6 @@
 import sys
 
+from PySide6.QtCore import QItemSelection
 from PySide6.QtWidgets import QMainWindow, QApplication, QFileDialog, QMessageBox
 
 from crt import Crt, CrtException, EasyFS
@@ -12,7 +13,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.actionE_xit.triggered.connect(self.file_exit)
         self.actionOpen_crt.triggered.connect(self.file_open)
+        self.actionExport.triggered.connect(self.file_export)
         self.model = EasyFS(self)
+        self.tableView.setModel(self.model)
+        selection_model = self.tableView.selectionModel()
+        selection_model.selectionChanged.connect(self.sel_changed)
+
+    def sel_changed(self, selected: QItemSelection, deselected: QItemSelection) -> None:
+        self.actionExport.setEnabled(selected.count() > 0)
 
     def file_exit(self) -> None:
         self.close()
@@ -28,6 +36,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.model.from_bytes(raw)
             except CrtException as ex:
                 QMessageBox.critical(self, "Open CRT file", str(ex))
+
+    def file_export(self) -> None:
+        path = QFileDialog.getExistingDirectory(self, "Export dir")
+        if path != "":
+            indexes = self.tableView.selectionModel().selectedRows()
+            for index in indexes:
+                file = self.model.files[index.row()]
+                file.export(path)
+            QMessageBox.information(self,"Export",f"Exported {len(indexes)} file(s).")
 
 
 if __name__ == "__main__":
