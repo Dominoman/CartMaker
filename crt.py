@@ -137,24 +137,32 @@ class Crt:
 
 class EasyFile:
     def __init__(self, cname: bytes = bytes(), name: str = "", flags: int = 0, bank: int = 0, offset: int = 0,
-                 load_address: int = 0, data: bytes = bytes()) -> None:
+                 data: bytes = bytes()) -> None:
         self.cname = cname
         self.name = name
         self.flags = flags
         self.bank = bank
         self.offset = offset
-        self.load_address = load_address
         self.data = data
         if cname:
             self.name = cname.decode('petscii_c64en_lc')
+        elif name:
+            self.cname = name.encode('petscii_c64en_lc')
+
+    @staticmethod
+    def load_file(file_name: str) -> 'EasyFile':
+        name = os.path.splitext(os.path.basename(file_name))[0]
+        with open(file_name, "rb") as fo:
+            data = fo.read()
+        return EasyFile(name=name, data=data)
 
     def __repr__(self):
         e = self.offset + len(self.data)
-        return f"{self.name}[{self.bank}:{hex(self.offset)}-{self.bank + e // 0x4000}:{hex(e % 0x4000)}=>{self.bank * 0x4000 + self.offset}]"
+        return f"{self.name}[{self.bank}:{self.offset:#06x}-{self.bank+e//0x4000}:{(e % 0x4000):#06x}]->{len(self.data)}"
 
     def export(self, path: str) -> None:
-        with open(os.path.join(path, f"{self.name}.prg"), 'wb') as fo:
-            fo.write(self.load_address.to_bytes(2, "little"))
+        ext = "prg" if self.flags & 0x1f in [1,2,3] else "bin"
+        with open(os.path.join(path, f"{self.name}.{ext}"), 'wb') as fo:
             fo.write(self.data)
 
 
@@ -166,18 +174,16 @@ class EasyFS(QAbstractTableModel):
         self.files = []
 
     def from_bytes(self, data: bytes) -> None:
-        app = EasyFile(name="app", flags=-1, load_address=0x8000, data=data[:0x2000])
+        app = EasyFile(name="app", flags=-1, data=data[:0x2000])
         self.files.append(app)
 
         directory = EasyFile(name="directory", flags=-1, offset=0x2000, data=data[0x2000:0x2000 + 0x1800])
         self.files.append(directory)
 
-        easyapi = EasyFile(name="easyapi", flags=-1, offset=0x2000 + 0x1800, load_address=0xb800,
-                           data=data[0x2000 + 0x1800:0x2000 + 0x1b00])
+        easyapi = EasyFile(name="easyapi", flags=-1, offset=0x2000 + 0x1800, data=data[0x2000 + 0x1800:0x2000 + 0x1b00])
         self.files.append(easyapi)
 
-        startup = EasyFile(name="startup", flags=-1, offset=0x2000 + 0x1b00, load_address=0xfb00,
-                           data=data[0x2000 + 0x1b00:0x4000])
+        startup = EasyFile(name="startup", flags=-1, offset=0x2000 + 0x1b00, data=data[0x2000 + 0x1b00:0x4000])
         self.files.append(startup)
 
         p = 0x2000
@@ -187,15 +193,21 @@ class EasyFS(QAbstractTableModel):
                             offset=int.from_bytes(data[p + 19:p + 21], "little"))
             size = int.from_bytes(data[p + 21:p + 24], "little")
             start_addr = file.bank * 0x4000 + file.offset
-            file.load_address = int.from_bytes(data[start_addr:start_addr + 2], "little")
-            file.data = data[start_addr + 2:start_addr + size - 1]
+            file.data = data[start_addr:start_addr + size - 1]
             self.files.append(file)
             p += 24
             entry += 1
         self.layoutChanged.emit()
 
+    def add_file(self, ef: EasyFile) -> None:
+        self.files.append(ef)
+        self.reorganize()
+
+    def reorganize(self) -> None:
+        pass
+
     def columnCount(self, parent=QModelIndex()) -> int:
-        return 4
+        return 3
 
     def rowCount(self, parent=QModelIndex()) -> int:
         return len(self.files)
@@ -206,12 +218,10 @@ class EasyFS(QAbstractTableModel):
             if index.column() == 0:
                 return file.name
             if index.column() == 1:
-                return f"0:{file.bank}:{file.offset:#0{4}x}"
+                return f"0:{file.bank}:{file.offset:#06x}"
             if index.column() == 2:
-                return file.load_address
-            if index.column() == 3:
                 return len(file.data)
 
-    def headerData(self, section: int, orientation: Qt.Orientation, role=Qt.ItemDataRole.DisplayRole):
+    def headerData(self, section: int, orientation: Qt.Orientation, role=Qt.ItemDataRole.DisplayRole)->Any:
         if role == Qt.ItemDataRole.DisplayRole and orientation == Qt.Orientation.Horizontal:
-            return ["File name", "Bank:offset", "Load address", "Size"][section]
+            return ["File name", "Bank:offset", "Size"][section]

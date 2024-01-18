@@ -41,6 +41,8 @@
      <string>&amp;File</string>
     </property>
     <addaction name="actionOpen_crt"/>
+    <addaction name="actionAdd_apps"/>
+    <addaction name="actionDelete_apps"/>
     <addaction name="actionExport"/>
     <addaction name="separator"/>
     <addaction name="actionE_xit"/>
@@ -60,6 +62,8 @@
    </attribute>
    <addaction name="actionOpen_crt"/>
    <addaction name="actionExport"/>
+   <addaction name="actionAdd_apps"/>
+   <addaction name="actionDelete_apps"/>
   </widget>
   <action name="actionE_xit">
    <property name="icon">
@@ -92,6 +96,27 @@
    </property>
    <property name="text">
     <string>Export...</string>
+   </property>
+  </action>
+  <action name="actionDelete_apps">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="icons.qrc">
+     <normaloff>:/Buttons/delete</normaloff>:/Buttons/delete</iconset>
+   </property>
+   <property name="text">
+    <string>Delete apps...</string>
+   </property>
+  </action>
+  <action name="actionAdd_apps">
+   <property name="icon">
+    <iconset resource="icons.qrc">
+     <normaloff>:/Buttons/add</normaloff>:/Buttons/add</iconset>
+   </property>
+   <property name="text">
+    <string>Add apps...</string>
    </property>
   </action>
  </widget>

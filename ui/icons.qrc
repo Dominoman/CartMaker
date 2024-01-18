@@ -1,5 +1,7 @@
 <RCC>
   <qresource prefix="Buttons">
+    <file alias="add">icons/application_add.png</file>
+    <file alias="delete">icons/application_delete.png</file>
     <file alias="export">icons/folder_go.png</file>
     <file alias="open">icons/folder.png</file>
     <file alias="exit">icons/door_open.png</file>
